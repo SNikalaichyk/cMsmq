@@ -10,8 +10,9 @@ Supports Windows Server 2008 R2 and later.
 * **Ensure**: Indicates whether the queue exists.
 * **Name**: Indicates the name of the queue.
 * **Transactional**: Indicates whether the queue is transactional.
-  > **Note:**
-  > If there is already a queue with the same name but of different type, an error will be thrown.
+
+  > **Note:** If there is already a queue with the same name but of different type, an error will be thrown.
+
 * **Authenticate**: Indicates whether the queue accepts only authenticated messages.
 * **Journaling**: Indicates whether received messages are copied to the journal queue.
 * **JournalQuota**: Indicates the maximum size of the journal queue in KB.
@@ -45,7 +46,7 @@ This configuration will install Microsoft Message Queuing (MSMQ), create several
 
 configuration Sample_cMsmq
 {
-    Import-DscResource –ModuleName PSDesiredStateConfiguration
+    Import-DscResource â€“ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName cMsmq
 
     # Ensure the Message Queueing is installed.
