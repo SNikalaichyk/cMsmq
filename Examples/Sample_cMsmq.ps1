@@ -1,7 +1,7 @@
 
 configuration Sample_cMsmq
 {
-    Import-DscResource –ModuleName PSDesiredStateConfiguration
+    Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName cMsmq
 
     # Ensure the Message Queueing is installed.

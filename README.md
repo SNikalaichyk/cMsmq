@@ -1,6 +1,6 @@
-# cMsmq
+﻿# cMsmq
 
-The **cMsmq** module contains DSC Resources for managing private MSMQ queues.
+The **cMsmq** module contains DSC resources for managing private MSMQ queues.
 Supports Windows Server 2008 R2 and later.
 
 ## Resources
@@ -46,7 +46,7 @@ This configuration will install Microsoft Message Queuing (MSMQ), create several
 
 configuration Sample_cMsmq
 {
-    Import-DscResource –ModuleName PSDesiredStateConfiguration
+    Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName cMsmq
 
     # Ensure the Message Queueing is installed.
