@@ -1,19 +1,19 @@
 ﻿<#
 Author  : Serge Nikalaichyk (https://www.linkedin.com/in/nikalaichyk)
-Version : 1.0.0
-Date    : 2015-10-01
+Version : 1.0.2
+Date    : 2015-10-15
 #>
 
 
 function Get-TargetResource
 {
     [CmdletBinding()]
-    [OutputType([System.Collections.Hashtable])]
+    [OutputType([Hashtable])]
     param
     (
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name
     )
     begin
@@ -32,7 +32,7 @@ function Get-TargetResource
             throw $_.Exception.Message
         }
 
-        Import-cMsmqType
+        Initialize-cMsmqType
     }
     process
     {
@@ -68,164 +68,50 @@ function Get-TargetResource
 }
 
 
-function Set-TargetResource
-{
-    [CmdletBinding(SupportsShouldProcess = $true)]
-    param
-    (
-        [Parameter(Mandatory = $false)]
-        [ValidateSet('Absent', 'Present')]
-        [System.String]
-        $Ensure = 'Present',
-
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [System.String]
-        $Name,
-
-        [Parameter(Mandatory = $false)]
-        [System.Boolean]
-        $Transactional = $false,
-
-        [Parameter(Mandatory = $false)]
-        [System.Boolean]
-        $Authenticate = $false,
-
-        [Parameter(Mandatory = $false)]
-        [System.Boolean]
-        $Journaling = $false,
-
-        [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $JournalQuota = [System.UInt32]::MaxValue,
-
-        [Parameter(Mandatory = $false)]
-        [System.String]
-        $Label = $null,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateSet('None', 'Optional', 'Body')]
-        [System.String]
-        $PrivacyLevel = 'Optional',
-
-        [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $QueueQuota = [System.UInt32]::MaxValue
-    )
-    begin
-    {
-        $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    }
-    process
-    {
-        if (-not $PSCmdlet.ShouldProcess($Name))
-        {
-            return
-        }
-
-        if ($Ensure -eq 'Absent')
-        {
-            Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
-
-            $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
-            $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::DeleteQueue
-
-            if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
-            {
-                "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
-                Write-Verbose
-
-                Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
-            }
-
-            $PSBoundParameters.GetEnumerator() |
-            Where-Object {$_.Key -in (Get-Command -Name Remove-cMsmqQueue).Parameters.Keys} |
-            ForEach-Object -Begin {$RemoveParameters = @{}} -Process {$RemoveParameters.Add($_.Key, $_.Value)}
-
-            Remove-cMsmqQueue @RemoveParameters -Confirm:$false
-        }
-        else
-        {
-            $TargetResource = Get-TargetResource -Name $Name
-
-            if ($TargetResource.Ensure -eq 'Absent')
-            {
-                $PSBoundParameters.GetEnumerator() |
-                Where-Object {$_.Key -in (Get-Command -Name New-cMsmqQueue).Parameters.Keys} |
-                ForEach-Object -Begin {$NewParameters = @{}} -Process {$NewParameters.Add($_.Key, $_.Value)}
-
-                New-cMsmqQueue @NewParameters
-            }
-            else
-            {
-                Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
-
-                $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
-                $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::SetQueueProperties
-
-                if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
-                {
-                    "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
-                    Write-Verbose
-
-                    Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
-                }
-
-                $PSBoundParameters.GetEnumerator() |
-                Where-Object {$_.Key -in (Get-Command -Name Set-cMsmqQueue).Parameters.Keys} |
-                ForEach-Object -Begin {$SetParameters = @{}} -Process {$SetParameters.Add($_.Key, $_.Value)}
-
-                Set-cMsmqQueue @SetParameters
-            }
-        }
-    }
-}
-
-
 function Test-TargetResource
 {
     [CmdletBinding()]
-    [OutputType([System.Boolean])]
+    [OutputType([Boolean])]
     param
     (
         [Parameter(Mandatory = $false)]
         [ValidateSet('Absent', 'Present')]
-        [System.String]
+        [String]
         $Ensure = 'Present',
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Transactional = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Authenticate = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Journaling = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $JournalQuota = [System.UInt32]::MaxValue,
+        [UInt32]
+        $JournalQuota = [UInt32]::MaxValue,
 
         [Parameter(Mandatory = $false)]
-        [System.String]
+        [String]
         $Label = $null,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('None', 'Optional', 'Body')]
-        [System.String]
+        [String]
         $PrivacyLevel = 'Optional',
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $QueueQuota = [System.UInt32]::MaxValue
+        [UInt32]
+        $QueueQuota = [UInt32]::MaxValue
     )
 
     $PSBoundParameters.GetEnumerator() |
@@ -321,36 +207,147 @@ function Test-TargetResource
 }
 
 
+function Set-TargetResource
+{
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param
+    (
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Absent', 'Present')]
+        [String]
+        $Ensure = 'Present',
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [Boolean]
+        $Transactional = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Boolean]
+        $Authenticate = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Boolean]
+        $Journaling = $false,
+
+        [Parameter(Mandatory = $false)]
+        [UInt32]
+        $JournalQuota = [UInt32]::MaxValue,
+
+        [Parameter(Mandatory = $false)]
+        [String]
+        $Label = $null,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('None', 'Optional', 'Body')]
+        [String]
+        $PrivacyLevel = 'Optional',
+
+        [Parameter(Mandatory = $false)]
+        [UInt32]
+        $QueueQuota = [UInt32]::MaxValue
+    )
+
+    if (-not $PSCmdlet.ShouldProcess($Name))
+    {
+        return
+    }
+
+    $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+    if ($Ensure -eq 'Absent')
+    {
+        Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
+
+        $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
+        $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::DeleteQueue
+
+        if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
+        {
+            "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
+            Write-Verbose
+
+            Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
+        }
+
+        $PSBoundParameters.GetEnumerator() |
+        Where-Object {$_.Key -in (Get-Command -Name Remove-cMsmqQueue).Parameters.Keys} |
+        ForEach-Object -Begin {$RemoveParameters = @{}} -Process {$RemoveParameters.Add($_.Key, $_.Value)}
+
+        Remove-cMsmqQueue @RemoveParameters -Confirm:$false
+    }
+    else
+    {
+        $TargetResource = Get-TargetResource -Name $Name
+
+        if ($TargetResource.Ensure -eq 'Absent')
+        {
+            $PSBoundParameters.GetEnumerator() |
+            Where-Object {$_.Key -in (Get-Command -Name New-cMsmqQueue).Parameters.Keys} |
+            ForEach-Object -Begin {$NewParameters = @{}} -Process {$NewParameters.Add($_.Key, $_.Value)}
+
+            New-cMsmqQueue @NewParameters
+        }
+        else
+        {
+            Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
+
+            $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
+            $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::SetQueueProperties
+
+            if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
+            {
+                "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
+                Write-Verbose
+
+                Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
+            }
+
+            $PSBoundParameters.GetEnumerator() |
+            Where-Object {$_.Key -in (Get-Command -Name Set-cMsmqQueue).Parameters.Keys} |
+            ForEach-Object -Begin {$SetParameters = @{}} -Process {$SetParameters.Add($_.Key, $_.Value)}
+
+            Set-cMsmqQueue @SetParameters
+        }
+    }
+
+}
+
+
 Export-ModuleMember -Function Get-TargetResource, Set-TargetResource, Test-TargetResource
 
 
 #region Helper Functions
 
-function Import-cMsmqType
+function Initialize-cMsmqType
 {
     <#
     .SYNOPSIS
-        Imports custom and native MSMQ types.
+        Initializes custom and native MSMQ types.
     .DESCRIPTION
-        The Import-cMsmqType function imports custom and native MSMQ types.
+        The Initialize-cMsmqType function initializes custom and native MSMQ types.
     #>
 
     $DllFilePath = Split-Path -Path $PSScriptRoot -Parent |
         Split-Path -Parent |
         Join-Path -ChildPath 'cMsmq.dll'
 
-    if ([System.AppDomain]::CurrentDomain.GetAssemblies().Location -notcontains $DllFilePath)
+    if ([AppDomain]::CurrentDomain.GetAssemblies().Location -notcontains $DllFilePath)
     {
         Add-Type -Path $DllFilePath -ErrorAction Stop
     }
 
-    if ([System.AppDomain]::CurrentDomain.GetAssemblies().ManifestModule.Name -notcontains 'System.Messaging.dll')
+    if ([AppDomain]::CurrentDomain.GetAssemblies().ManifestModule.Name -notcontains 'System.Messaging.dll')
     {
         Add-Type -AssemblyName System.Messaging -ErrorAction Stop
     }
 }
 
-Import-cMsmqType
+Initialize-cMsmqType
 
 
 function Get-cMsmqQueue
@@ -369,12 +366,12 @@ function Get-cMsmqQueue
     (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name
     )
     begin
     {
-        Import-MsmqType
+        Initialize-cMsmqType
     }
     process
     {
@@ -395,10 +392,10 @@ function Get-cMsmqQueue
                 Transactional = $Queue.Transactional
                 Authenticate = $Queue.Authenticate
                 Journaling= $Queue.UseJournalQueue
-                JournalQuota = [System.UInt32]$Queue.MaximumJournalSize
+                JournalQuota = [UInt32]$Queue.MaximumJournalSize
                 Label = $Queue.Label
-                PrivacyLevel = [System.String]$Queue.EncryptionRequired
-                QueueQuota = [System.UInt32]$Queue.MaximumQueueSize
+                PrivacyLevel = [String]$Queue.EncryptionRequired
+                QueueQuota = [UInt32]$Queue.MaximumQueueSize
             }
 
         return $OutputObject
@@ -424,16 +421,16 @@ function Get-cMsmqQueuePermission
     param
     (
         [Parameter(Mandatory = $true)]
-        [System.String]
+        [String]
         $Name,
 
         [Parameter(Mandatory = $true)]
-        [System.String]
+        [String]
         $Principal
     )
     begin
     {
-        Import-MsmqType
+        Initialize-cMsmqType
     }
     process
     {
@@ -485,41 +482,41 @@ function New-cMsmqQueue
         (
         [Parameter( Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Transactional = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Authenticate = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Journaling = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $JournalQuota = [System.UInt32]::MaxValue,
+        [UInt32]
+        $JournalQuota = [UInt32]::MaxValue,
 
         [Parameter(Mandatory = $false)]
-        [System.String]
+        [String]
         $Label = $null,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('None', 'Optional', 'Body')]
-        [System.String]
+        [String]
         $PrivacyLevel = 'Optional',
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $QueueQuota = [System.UInt32]::MaxValue
+        [UInt32]
+        $QueueQuota = [UInt32]::MaxValue
     )
     begin
     {
-        Import-cMsmqType
+        Initialize-cMsmqType
 
         $PropertyNames = @{
             Authenticate = 'Authenticate'
@@ -584,12 +581,12 @@ function Remove-cMsmqQueue
     (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name
     )
     begin
     {
-        Import-cMsmqType
+        Initialize-cMsmqType
     }
     process
     {
@@ -631,12 +628,12 @@ function Reset-cMsmqQueueSecurity
     (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name
     )
     begin
     {
-        Import-cMsmqType
+        Initialize-cMsmqType
 
         $DefaultSecurity = 'Security=010007801c0000002800000000000000140000000200080000000000' +
             '010100000000000512000000010500000000000515000000e611610036157811027bc60001020000'
@@ -665,7 +662,7 @@ function Reset-cMsmqQueueSecurity
 
             if (-not $FilePath)
             {
-                Write-Error -Message "Could not find a corresponding .ini file for queue '$Name'."
+                Write-Error -Message "Could not find a corresponding .INI file for queue '$Name'."
 
                 return
             }
@@ -711,37 +708,37 @@ function Set-cMsmqQueue
     (
         [Parameter( Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [String]
         $Name,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Authenticate = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.Boolean]
+        [Boolean]
         $Journaling = $false,
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $JournalQuota = [System.UInt32]::MaxValue,
+        [UInt32]
+        $JournalQuota = [UInt32]::MaxValue,
 
         [Parameter(Mandatory = $false)]
-        [System.String]
+        [String]
         $Label = $null,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('None', 'Optional', 'Body')]
-        [System.String]
+        [String]
         $PrivacyLevel = 'Optional',
 
         [Parameter(Mandatory = $false)]
-        [System.UInt32]
-        $QueueQuota = [System.UInt32]::MaxValue
+        [UInt32]
+        $QueueQuota = [UInt32]::MaxValue
     )
     begin
     {
-        Import-cMsmqType
+        Initialize-cMsmqType
 
         $PropertyNames = @{
             Authenticate = 'Authenticate'
