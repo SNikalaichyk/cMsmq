@@ -1,7 +1,7 @@
 ﻿<#
 Author  : Serge Nikalaichyk (https://www.linkedin.com/in/nikalaichyk)
-Version : 1.0.2
-Date    : 2015-10-15
+Version : 1.0.3
+Date    : 2015-11-24
 #>
 
 
@@ -39,7 +39,7 @@ function Get-TargetResource
 
             if ($Service.Status -ne 'Running')
             {
-                throw "Please ensure that the Message Queuing (MSMQ) service is running."
+                throw 'Please ensure that the Message Queuing (MSMQ) service is running.'
             }
         }
         catch
@@ -364,12 +364,12 @@ function Reset-cMsmqQueueSecurity
             Write-Verbose -Message "Taking ownership of queue '$Name'."
 
             $FilePath = Get-ChildItem -Path "$Env:SystemRoot\System32\msmq\storage\lqs" -Force |
-                Select-String -Pattern "Label=private`$\$($Name)" -SimpleMatch |
+                Select-String -Pattern "QueueName=\private`$\$($Name)" -SimpleMatch |
                 Select-Object -ExpandProperty Path
 
             if (-not $FilePath)
             {
-                Write-Error -Message "Could not find a corresponding .ini file for queue '$Name'."
+                Write-Error -Message "Could not find a corresponding .INI file for queue '$Name'."
 
                 return
             }

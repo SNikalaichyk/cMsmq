@@ -35,6 +35,10 @@ You can also download this module from the [PowerShell Gallery](https://www.powe
 
 ## Versions
 
+### 1.0.3 (November 24, 2015)
+
+* Minor bug-fixing update.
+
 ### 1.0.2 (October 15, 2015)
 
 * Minor update.

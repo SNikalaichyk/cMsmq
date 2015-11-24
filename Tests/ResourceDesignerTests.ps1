@@ -1,4 +1,4 @@
-
+﻿
 #requires -Version 4.0 -Modules xDSCResourceDesigner
 
 Split-Path -Path $PSScriptRoot -Parent |
