@@ -1,4 +1,3 @@
-﻿
 [ClassVersion("1.0.0.0"), FriendlyName("cMsmqQueue")]
 class cMsmqQueue : OMI_BaseResource
 {
@@ -12,4 +11,3 @@ class cMsmqQueue : OMI_BaseResource
     [Write, Description("Indicates the privacy level associated with the queue."), ValueMap{"None","Optional","Body"}, Values{"None","Optional","Body"}] String PrivacyLevel;
     [Write, Description("Indicates the maximum size of the queue in KB.")] UInt32 QueueQuota;
 };
-

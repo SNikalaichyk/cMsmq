@@ -1,21 +1,21 @@
-﻿# cMsmq
+# cMsmq
 
 The **cMsmq** module contains DSC resources for managing private MSMQ queues.
 
 *Supports Windows Server 2008 R2 and later.*
 
-You can also download this module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/cMsmq/).
+You can also download this module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/cMsmq).
 
 ## Resources
 
 ### cMsmqQueue
 
+The **cMsmqQueue** DSC resource provides a mechanism to manage private MSMQ queues.
+
 * **Ensure**: Indicates whether the queue exists.
 * **Name**: Indicates the name of the queue.
 * **Transactional**: Indicates whether the queue is transactional.
-
   > **Note:** If there is already a queue with the same name but of different type, an error will be thrown.
-
 * **Authenticate**: Indicates whether the queue accepts only authenticated messages.
 * **Journaling**: Indicates whether received messages are copied to the journal queue.
 * **JournalQuota**: Indicates the maximum size of the journal queue in KB.
@@ -25,19 +25,29 @@ You can also download this module from the [PowerShell Gallery](https://www.powe
 
 ### cMsmqQueuePermissionEntry
 
-* **Ensure**: Indicates whether the permission entry exists. The default value is `Present`. Set this property to `Absent` to ensure that any access rights the principal has are revoked.
-* **Name**: Indicates the name of the queue.
-* **Principal**: Indicates the identity of the principal. Valid name formats: Down-Level Logon Name; User Principal Name; sAMAccountName; Security Identifier.
-* **AccessRights**: Indicates the access rights to be granted to the principal. Specify one or more values from the [System.Messaging.MessageQueueAccessRights](https://msdn.microsoft.com/en-us/library/system.messaging.messagequeueaccessrights%28v=vs.110%29.aspx) enumeration type. Multiple values can be specified by using a comma-separated string.
+The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage permissions on private MSMQ queues.
 
-> **Note:**
-> If the **Ensure** property is set to `Absent`, all the other non-mandatory properties are ignored. Applies to both the **cMsmqQueue** and the **cMsmqQueuePermissionEntry** resources.
+* **Ensure**: Indicates whether the permission entry exists. Set this property to `Absent` to ensure that any access rights the principal has are revoked. The default value is `Present`.
+* **Name**: Indicates the name of the queue.
+* **Principal**: Indicates the identity of the principal.
+ Valid name formats:
+ [User Principal Name](https://msdn.microsoft.com/en-us/library/windows/desktop/aa380525%28v=vs.85%29.aspx#user_principal_name);
+ [Down-Level Logon Name](https://msdn.microsoft.com/en-us/library/windows/desktop/aa380525%28v=vs.85%29.aspx#down_level_logon_name);
+ [Security Accounts Manager (SAM) Account Name (sAMAccountName)](https://msdn.microsoft.com/en-us/library/windows/desktop/ms679635%28v=vs.85%29.aspx).
+ Security Identifier (SID).
+* **AccessRights**: Indicates the access rights to be granted to the principal.
+ Specify one or more values from the [System.Messaging.MessageQueueAccessRights](https://msdn.microsoft.com/en-us/library/system.messaging.messagequeueaccessrights%28v=vs.110%29.aspx) enumeration type.
+ Multiple values can be specified by using a single comma-separated string or as an array of strings.
 
 ## Versions
 
+### 1.0.x (to be released)
+
+* Unit and integration tests created (not really).
+
 ### 1.0.3 (November 24, 2015)
 
-* Minor bug-fixing update.
+* Minor bug fixing update.
 
 ### 1.0.2 (October 15, 2015)
 
@@ -50,32 +60,32 @@ You can also download this module from the [PowerShell Gallery](https://www.powe
 ### 1.0.0 (October 1, 2015)
 
 * Initial release with the following resources:
-  - **cMsmqQueue**;
-  - **cMsmqQueuePermissionEntry**.
+    * **cMsmqQueue**
+    * **cMsmqQueuePermissionEntry**
 
 ## Examples
 
-This configuration will install Microsoft Message Queuing (MSMQ), create several private queues, and assign permissions on them.
+This configuration will ensure that Microsoft Message Queuing (MSMQ) is installed, create several private queues, and assign permissions on them.
 
 ```powershell
 
 configuration Sample_cMsmq
 {
-    Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName cMsmq
+    Import-DscResource -ModuleName PSDesiredStateConfiguration
 
     # Ensure the Message Queueing is installed.
     WindowsFeature MSMQ
     {
         Ensure = 'Present'
-        Name = 'MSMQ'
+        Name   = 'MSMQ'
     }
 
     # Ensure the MSMQ service is running.
     Service MsmqService
     {
-        Name = 'MSMQ'
-        State = 'Running'
+        Name      = 'MSMQ'
+        State     = 'Running'
         DependsOn = '[WindowsFeature]MSMQ'
     }
 
@@ -83,8 +93,8 @@ configuration Sample_cMsmq
     # All the parameters will be either left unchanged or, if the queue is to be created, set to their default values.
     cMsmqQueue Queue1
     {
-        Ensure = 'Present'
-        Name = 'Queue-1'
+        Ensure    = 'Present'
+        Name      = 'Queue-1'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -92,52 +102,51 @@ configuration Sample_cMsmq
     # If there is already a private queue with the same name but of different type, an error will be thrown.
     cMsmqQueue Queue2
     {
-        Ensure = 'Present'
-        Name = 'Queue-2'
+        Ensure        = 'Present'
+        Name          = 'Queue-2'
         Transactional = $true
-        Authenticate = $true
-        Journaling = $true
-        JournalQuota = 65536
-        Label = 'Created by the cMsmqQueue DSC resource'
-        PrivacyLevel = 'Body'
-        QueueQuota = 262144
-        DependsOn = '[Service]MsmqService'
+        Authenticate  = $true
+        Journaling    = $true
+        JournalQuota  = 65536
+        Label         = 'Created by the cMsmqQueue DSC resource'
+        PrivacyLevel  = 'Body'
+        QueueQuota    = 262144
+        DependsOn     = '[Service]MsmqService'
     }
 
     # Ensure the specified private queue does not exist.
-    # If provided, all the other non-mandatory properties will be ignored.
     cMsmqQueue Queue3
     {
-        Ensure = 'Absent'
-        Name = 'Queue-3'
+        Ensure    = 'Absent'
+        Name      = 'Queue-3'
         DependsOn = '[Service]MsmqService'
     }
 
     # Grant Full Control permission level for the specified principal.
     cMsmqQueuePermissionEntry QueuePermission1
     {
-        Ensure = 'Present'
-        Name = 'Queue-1'
-        Principal = $Env:UserDomain, $Env:UserName -join '\'
+        Ensure       = 'Present'
+        Name         = 'Queue-1'
+        Principal    = $Env:UserDomain, $Env:UserName -join '\'
         AccessRights = 'FullControl'
-        DependsOn = '[cMsmqQueue]Queue1'
+        DependsOn    = '[cMsmqQueue]Queue1'
     }
 
     # Grant multiple access rights for the specified principal.
     cMsmqQueuePermissionEntry QueuePermission2
     {
-        Ensure = 'Present'
-        Name = 'Queue-2'
-        Principal = 'BUILTIN\Administrators'
+        Ensure       = 'Present'
+        Name         = 'Queue-2'
+        Principal    = 'BUILTIN\Administrators'
         AccessRights = 'ChangeQueuePermissions', 'DeleteQueue'
-        DependsOn = '[cMsmqQueue]Queue2'
+        DependsOn    = '[cMsmqQueue]Queue2'
     }
 
     # Revoke all permissions for the specified principal.
     cMsmqQueuePermissionEntry QueuePermission3
     {
-        Ensure = 'Absent'
-        Name = 'Queue-2'
+        Ensure    = 'Absent'
+        Name      = 'Queue-2'
         Principal = 'BUILTIN\Users'
         DependsOn = '[cMsmqQueue]Queue2'
     }
@@ -149,6 +158,4 @@ Start-DscConfiguration -Path "$Env:SystemDrive\Sample_cMsmq" -Force -Verbose -Wa
 
 Get-DscConfiguration
 
-
 ```
-

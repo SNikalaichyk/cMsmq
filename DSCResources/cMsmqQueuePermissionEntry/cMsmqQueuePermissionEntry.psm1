@@ -1,9 +1,4 @@
-﻿<#
-Author  : Serge Nikalaichyk (https://www.linkedin.com/in/nikalaichyk)
-Version : 1.0.3
-Date    : 2015-11-24
-#>
-
+#requires -Version 4.0
 
 function Get-TargetResource
 {
@@ -33,18 +28,11 @@ function Get-TargetResource
     )
     begin
     {
-        try
-        {
-            $Service = Get-Service -Name MSMQ -ErrorAction Stop
+        $Service = Get-Service -Name MSMQ -ErrorAction Stop
 
-            if ($Service.Status -ne 'Running')
-            {
-                throw 'Please ensure that the Message Queuing (MSMQ) service is running.'
-            }
-        }
-        catch
+        if ($Service.Status -ne 'Running')
         {
-            throw $_.Exception.Message
+            throw 'Please ensure that the Message Queuing (MSMQ) service is running.'
         }
 
         Initialize-cMsmqType
@@ -56,7 +44,6 @@ function Get-TargetResource
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
             Write-Error -Message "Queue '$Name' could not be found at the specified path: '$QueuePath'."
-
             return
         }
 
@@ -97,16 +84,15 @@ function Get-TargetResource
         }
 
         $ReturnValue = @{
-                Ensure = $EnsureResult
-                Name = $Name
-                Principal = $Principal
+                Ensure       = $EnsureResult
+                Name         = $Name
+                Principal    = $Principal
                 AccessRights = $AccessRightsResult
             }
 
         return $ReturnValue
     }
 }
-
 
 function Test-TargetResource
 {
@@ -157,9 +143,7 @@ function Test-TargetResource
     }
 
     return $InDesiredState
-
 }
-
 
 function Set-TargetResource
 {
@@ -199,7 +183,6 @@ function Set-TargetResource
     if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
     {
         Write-Error -Message "Queue '$Name' could not be found at the specified path: '$QueuePath'."
-
         return
     }
 
@@ -232,12 +215,9 @@ function Set-TargetResource
 
         $Queue.SetPermissions($Principal, $DesiredPermission, [System.Messaging.AccessControlEntryType]::Set)
     }
-
 }
 
-
-Export-ModuleMember -Function Get-TargetResource, Set-TargetResource, Test-TargetResource
-
+Export-ModuleMember -Function *-TargetResource
 
 #region Helper Functions
 
@@ -267,14 +247,13 @@ function Initialize-cMsmqType
 
 Initialize-cMsmqType
 
-
 function Get-cMsmqQueuePermission
 {
     <#
     .SYNOPSIS
         Gets the access rights of the specified principal on the specified private MSMQ queue.
     .DESCRIPTION
-        The Get-cMsmqQueuePermission function gets the access rights that have been granted 
+        The Get-cMsmqQueuePermission function gets the access rights that have been granted
         to the specified security principal on the specified private MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
@@ -311,12 +290,10 @@ function Get-cMsmqQueuePermission
         catch
         {
             Write-Error -Message $_.Exception.Message
-
             return
         }
     }
 }
-
 
 function Reset-cMsmqQueueSecurity
 {
@@ -325,8 +302,8 @@ function Reset-cMsmqQueueSecurity
         Resets the security settings on the specified private MSMQ queue.
     .DESCRIPTION
         The Reset-cMsmqQueueSecurity function performs the following actions:
-            - Grants ownership of the queue to the SYSTEM account (DSC runs as SYSTEM);
-            - Resets the permission list to the operating system's default values.
+        - Grants ownership of the queue to the SYSTEM account (DSC runs as SYSTEM);
+        - Resets the permission list to the operating system's default values.
     .PARAMETER Name
         Specifies the name of the queue.
     #>
@@ -370,7 +347,6 @@ function Reset-cMsmqQueueSecurity
             if (-not $FilePath)
             {
                 Write-Error -Message "Could not find a corresponding .INI file for queue '$Name'."
-
                 return
             }
 
@@ -387,6 +363,4 @@ function Reset-cMsmqQueueSecurity
     }
 }
 
-
 #endregion
-

@@ -1,11 +1,10 @@
-﻿
 #requires -Version 4.0 -Modules xDSCResourceDesigner
 
-$ModuleName = 'cMsmq'
-$ResourceName = 'cMsmqQueue'
+$DscModuleName   = 'cMsmq'
+$DscResourceName = 'cMsmqQueue'
 
 $DscResourceProperties =  @(
-    (New-xDscResourceProperty -Type String -Attribute Write -Name Ensure -ValidateSet 'Absent', 'Present' -Description "Indicates whether the queue exists.")
+    (New-xDscResourceProperty -Type String -Attribute Write -Name Ensure -ValidateSet 'Absent', 'Present' -Description 'Indicates whether the queue exists.')
     (New-xDscResourceProperty -Type String -Attribute Key -Name Name -Description 'Indicates the name of the queue.')
     (New-xDscResourceProperty -Type Boolean -Attribute Write -Name Transactional -Description 'Indicates whether the queue is transactional.')
     (New-xDscResourceProperty -Type Boolean -Attribute Write -Name Authenticate -Description 'Indicates whether the queue accepts only authenticated messages.')
@@ -16,5 +15,4 @@ $DscResourceProperties =  @(
     (New-xDscResourceProperty -Type UInt32 -Attribute Write -Name QueueQuota -Description 'Indicates the maximum size of the queue in KB.')
 )
 
-New-xDscResource -Name $ResourceName -ModuleName $ModuleName -Property $DscResourceProperties -Verbose
-
+New-xDscResource -Name $DscResourceName -ModuleName $DscModuleName -Property $DscResourceProperties -Verbose

@@ -1,9 +1,3 @@
-﻿/*
-Author  : Serge Nikalaichyk
-Version : 1.0.0
-Date    : 2015-09-30
-*/
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -11,7 +5,6 @@ using System.Security.Principal;
 
 namespace cMsmq
 {
-
     #region Enumerations
 
     [Flags]
@@ -31,8 +24,15 @@ namespace cMsmq
         GenericRead = (GetQueueProperties | GetQueuePermissions | ReceiveMessage | ReceiveJournalMessage),
         ChangeQueuePermissions = 0x00040000,
         TakeQueueOwnership = 0x00080000,
-        FullControl = (ReceiveMessage | ReceiveJournalMessage | WriteMessage | SetQueueProperties
-            | GetQueueProperties | DeleteQueue | GetQueuePermissions | ChangeQueuePermissions | TakeQueueOwnership)
+        FullControl = (ReceiveMessage |
+                       ReceiveJournalMessage |
+                       WriteMessage |
+                       SetQueueProperties |
+                       GetQueueProperties |
+                       DeleteQueue |
+                       GetQueuePermissions |
+                       ChangeQueuePermissions |
+                       TakeQueueOwnership)
     };
 
     [Flags]
@@ -111,53 +111,24 @@ namespace cMsmq
     public class Security
     {
         private const int MQ_OK = 0x0;
-        private const uint MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL = 0xC00E0023;
-        private const uint MQ_ERROR_ILLEGAL_FORMATNAME = 0xC00E001E;
         private const uint MQ_ERROR_ACCESS_DENIED = 0xC00E0025;
+        private const uint MQ_ERROR_ILLEGAL_FORMATNAME = 0xC00E001E;
         private const uint MQ_ERROR_NO_DS = 0xC00E0013;
         private const uint MQ_ERROR_PRIVILEGE_NOT_HELD = 0xC00E0026;
+        private const uint MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL = 0xC00E0023;
         private const uint MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION = 0xC00E0020;
         private const uint MQ_ERROR_QUEUE_NOT_FOUND = 0xC00E0003;
 
         private static readonly Dictionary<uint, string> ErrorMessages = new Dictionary<uint, string>
         {
-            {MQ_ERROR_ILLEGAL_FORMATNAME, "MQ_ERROR_ILLEGAL_FORMATNAME"},
-            {MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL, "MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL"},
-            {MQ_ERROR_ACCESS_DENIED, "MQ_ERROR_ACCESS_DENIED"},
-            {MQ_ERROR_NO_DS, "MQ_ERROR_NO_DS"},
-            {MQ_ERROR_PRIVILEGE_NOT_HELD, "MQ_ERROR_PRIVILEGE_NOT_HELD"},
-            {MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION, "MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION"},
-            {MQ_ERROR_QUEUE_NOT_FOUND, "MQ_ERROR_QUEUE_NOT_FOUND"}
+            {MQ_ERROR_ACCESS_DENIED, "Access is denied."},
+            {MQ_ERROR_ILLEGAL_FORMATNAME, "The specified format name is not valid."},
+            {MQ_ERROR_NO_DS, "A connection with the directory service cannot be established."},
+            {MQ_ERROR_PRIVILEGE_NOT_HELD, "The process owner does not have the required privileges to perform the operation."},
+            {MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL, "The buffer is too small to hold the security descriptor."},
+            {MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION, "The requested operation is not supported for the specified format name."},
+            {MQ_ERROR_QUEUE_NOT_FOUND, "Message Queuing cannot find the queue."}
         };
-
-        public static MessageQueueAccessRights GetAccessMask(QueuePath queuePath, string userName)
-        {
-            var sid = TranslateUserNameToSid(userName);
-            var gchSecurityDescriptor = GetSecurityDescriptorHandle(queuePath, (int)SecurityInformation.Dacl);
-            var ace = GetAce(gchSecurityDescriptor.AddrOfPinnedObject(), sid);
-            var aceMask = ace.Mask;
-
-            gchSecurityDescriptor.Free();
-
-            return aceMask;
-        }
-
-        public static string GetOwner(QueuePath queuePath)
-        {
-            IntPtr pOwner;
-            bool ownerDefaulted;
-
-            var gchSecurityDescriptor = GetSecurityDescriptorHandle(queuePath, (int)SecurityInformation.Owner);
-
-            Security.GetSecurityDescriptorOwner(gchSecurityDescriptor.AddrOfPinnedObject(), out pOwner, out ownerDefaulted);
-
-            var ownerSid = new SecurityIdentifier(pOwner);
-            string ownerUserName = TranslateSidToUserName(ownerSid);
-
-            gchSecurityDescriptor.Free();
-
-            return ownerUserName;
-        }
 
         private static string GetErrorMessage(uint errorCode)
         {
@@ -234,12 +205,7 @@ namespace cMsmq
 
             if (result != Security.MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL)
             {
-                string message = "There was an error calling MQGetQueueSecurity."
-                    + Environment.NewLine
-                    + "Error Number: " + result.ToString()
-                    + Environment.NewLine
-                    + "Error Message: " + Security.GetErrorMessage(result);
-
+                string message = Security.GetErrorMessage(result);
                 throw new Exception(message);
             }
 
@@ -256,12 +222,7 @@ namespace cMsmq
             {
                 gchSecurityDescriptor.Free();
 
-                string message = "There was an error calling MQGetQueueSecurity to read the Security Descriptor. "
-                    + Environment.NewLine
-                    + "Error Number: " + result.ToString()
-                    + Environment.NewLine
-                    + "Error Message: " + Security.GetErrorMessage(result);
-
+                string message = Security.GetErrorMessage(result);
                 throw new Exception(message);
             }
 
@@ -269,6 +230,34 @@ namespace cMsmq
             Marshal.PtrToStructure(pSecurityDescriptor, securityDescriptor);
 
             return gchSecurityDescriptor;
+        }
+
+        public static MessageQueueAccessRights GetAccessMask(QueuePath queuePath, string userName)
+        {
+            var sid = TranslateUserNameToSid(userName);
+            var gchSecurityDescriptor = GetSecurityDescriptorHandle(queuePath, (int)SecurityInformation.Dacl);
+            var ace = GetAce(gchSecurityDescriptor.AddrOfPinnedObject(), sid);
+            var aceMask = ace.Mask;
+
+            gchSecurityDescriptor.Free();
+
+            return aceMask;
+        }
+
+        public static string GetOwner(QueuePath queuePath)
+        {
+            IntPtr pOwner;
+            bool ownerDefaulted;
+
+            var gchSecurityDescriptor = GetSecurityDescriptorHandle(queuePath, (int)SecurityInformation.Owner);
+            Security.GetSecurityDescriptorOwner(gchSecurityDescriptor.AddrOfPinnedObject(), out pOwner, out ownerDefaulted);
+
+            var ownerSid = new SecurityIdentifier(pOwner);
+            string ownerUserName = TranslateSidToUserName(ownerSid);
+
+            gchSecurityDescriptor.Free();
+
+            return ownerUserName;
         }
 
         #region P/Invoke Definitions
@@ -328,7 +317,5 @@ namespace cMsmq
         );
 
         #endregion
-
     }
-
 }

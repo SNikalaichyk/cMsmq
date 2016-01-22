@@ -1,10 +1,8 @@
-﻿
 [ClassVersion("1.0.0.0"), FriendlyName("cMsmqQueuePermissionEntry")]
 class cMsmqQueuePermissionEntry : OMI_BaseResource
 {
-    [Write, Description("Indicates whether the permission entry exists. The default value is Present. Set this property to Absent to ensure that any access rights the principal has are revoked."), ValueMap{"Absent","Present"}, Values{"Absent","Present"}] String Ensure;
+    [Write, Description("Indicates whether the permission entry exists."), ValueMap{"Absent","Present"}, Values{"Absent","Present"}] String Ensure;
     [Key, Description("Indicates the name of the queue.")] String Name;
-    [Key, Description("Indicates the identity of the principal. Valid name formats: Down-Level Logon Name; User Principal Name; sAMAccountName; Security Identifier.")] String Principal;
-    [Write, Description("Indicates the access rights to be granted to the principal. Specify one or more values from the System.Messaging.MessageQueueAccessRights enumeration type. Multiple values can be specified by using a comma-separated string.")] String AccessRights[];
+    [Key, Description("Indicates the identity of the principal.")] String Principal;
+    [Write, Description("Indicates the access rights to be granted to the principal.")] String AccessRights[];
 };
-
