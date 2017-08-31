@@ -356,7 +356,7 @@ function Get-cMsmqQueue
     }
     process
     {
-        $QueuePath = '.\private$\{0}' -f $Name
+        $QueuePath = '.\{0}' -f $Name
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
@@ -389,7 +389,7 @@ function Get-cMsmqQueuePermission
         Gets the access rights of the specified principal on the specified private MSMQ queue.
     .DESCRIPTION
         The Get-cMsmqQueuePermission function gets the access rights that have been granted
-        to the specified security principal on the specified private MSMQ queue.
+        to the specified security principal on the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
     .PARAMETER Principal
@@ -511,7 +511,7 @@ function New-cMsmqQueue
             return
         }
 
-        $QueuePath = '.\private$\{0}' -f $Name
+        $QueuePath = '.\{0}' -f $Name
 
         try
         {
@@ -545,9 +545,9 @@ function Remove-cMsmqQueue
 {
     <#
     .SYNOPSIS
-        Removes the specified private MSMQ queue.
+        Removes the specified MSMQ queue.
     .DESCRIPTION
-        The Remove-cMsmqQueue function the specified private MSMQ queue.
+        The Remove-cMsmqQueue function the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
     #>
@@ -570,7 +570,7 @@ function Remove-cMsmqQueue
             return
         }
 
-        $QueuePath = '.\private$\{0}' -f $Name
+        $QueuePath = '.\{0}' -f $Name
 
         try
         {
@@ -588,7 +588,7 @@ function Reset-cMsmqQueueSecurity
 {
     <#
     .SYNOPSIS
-        Resets the security settings on the specified private MSMQ queue.
+        Resets the security settings on the specified MSMQ queue.
     .DESCRIPTION
         The Reset-cMsmqQueueSecurity function performs the following actions:
         - Grants ownership of the queue to the SYSTEM account (DSC runs as SYSTEM);
@@ -618,7 +618,7 @@ function Reset-cMsmqQueueSecurity
             return
         }
 
-        $QueuePath = '.\private$\{0}' -f $Name
+        $QueuePath = '.\{0}' -f $Name
 
         $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
         $QueueOwner = [cMsmq.Security]::GetOwner($Name)
@@ -630,7 +630,7 @@ function Reset-cMsmqQueueSecurity
             Write-Verbose -Message "Taking ownership of queue '$Name'."
 
             $FilePath = Get-ChildItem -Path "$Env:SystemRoot\System32\msmq\storage\lqs" -Force |
-                Select-String -Pattern "QueueName=\private`$\$($Name)" -SimpleMatch |
+                Select-String -Pattern "QueueName=$($Name)" -SimpleMatch |
                 Select-Object -ExpandProperty Path
 
             if (-not $FilePath)
@@ -656,9 +656,9 @@ function Set-cMsmqQueue
 {
     <#
     .SYNOPSIS
-        Sets properties on the specified private MSMQ queue.
+        Sets properties on the specified MSMQ queue.
     .DESCRIPTION
-        The Set-cMsmqQueue function sets properties on the specified private MSMQ queue.
+        The Set-cMsmqQueue function sets properties on the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
     .PARAMETER Authenticate
@@ -727,7 +727,7 @@ function Set-cMsmqQueue
             return
         }
 
-        $QueuePath = '.\private$\{0}' -f $Name
+        $QueuePath = '.\{0}' -f $Name
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {

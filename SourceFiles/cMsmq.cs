@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -94,9 +95,10 @@ namespace cMsmq
 
     public class QueuePath
     {
-        private const string QueuePathFormat = @"Direct=OS:.\private$\{0}";
+        private const string QueuePathFormat = @"{0}\{1}";
         private string queueName;
 
+        // queuename should be in the form 'private$\myprivatequeue' or 'mypublicqueue'
         public QueuePath(string queueName)
         {
             this.queueName = queueName;
@@ -104,7 +106,7 @@ namespace cMsmq
 
         public override string ToString()
         {
-            return string.Format(QueuePathFormat, queueName);
+            return string.Format(QueuePathFormat, System.Environment.MachineName, queueName);
         }
     }
 
@@ -118,6 +120,9 @@ namespace cMsmq
         private const uint MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL = 0xC00E0023;
         private const uint MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION = 0xC00E0020;
         private const uint MQ_ERROR_QUEUE_NOT_FOUND = 0xC00E0003;
+        private const uint MQ_ERROR_FORMATNAME_BUFFER_TOO_SMALL = 0xC00E001F;
+        private const uint MQ_ERROR_ILLEGAL_QUEUE_PATHNAME = 0xC00E0014;
+        private const uint MQ_ERROR_SERVICE_NOT_AVAILABLE = 0xC00E000B;
 
         private static readonly Dictionary<uint, string> ErrorMessages = new Dictionary<uint, string>
         {
@@ -127,7 +132,10 @@ namespace cMsmq
             {MQ_ERROR_PRIVILEGE_NOT_HELD, "The process owner does not have the required privileges to perform the operation."},
             {MQ_ERROR_SECURITY_DESCRIPTOR_TOO_SMALL, "The buffer is too small to hold the security descriptor."},
             {MQ_ERROR_UNSUPPORTED_FORMATNAME_OPERATION, "The requested operation is not supported for the specified format name."},
-            {MQ_ERROR_QUEUE_NOT_FOUND, "Message Queuing cannot find the queue."}
+            {MQ_ERROR_QUEUE_NOT_FOUND, "Message Queuing cannot find the queue."},
+            {MQ_ERROR_FORMATNAME_BUFFER_TOO_SMALL, "MQ_ERROR_FORMATNAME_BUFFER_TOO_SMALL"},
+            {MQ_ERROR_ILLEGAL_QUEUE_PATHNAME, "MQ_ERROR_ILLEGAL_QUEUE_PATHNAME"},
+            {MQ_ERROR_SERVICE_NOT_AVAILABLE, "MQ_ERROR_SERVICE_NOT_AVAILABLE"}
         };
 
         private static string GetErrorMessage(uint errorCode)
@@ -192,6 +200,20 @@ namespace cMsmq
             }
         }
 
+        private static string PathNameToFormatName(QueuePath queuePath)
+        {
+            string pathName = queuePath.ToString();
+            int formatNameLength = 54; // max: 44 for public, 54 for private
+            StringBuilder formatNameBuffer = new StringBuilder(formatNameLength);
+            uint result = Security.MQPathNameToFormatName(pathName, formatNameBuffer, ref formatNameLength);
+            if (result != Security.MQ_OK)
+            {
+                string message = Security.GetErrorMessage(result);
+                throw new Exception(message);
+            }
+            return formatNameBuffer.ToString();
+        }
+
         private static GCHandle GetSecurityDescriptorHandle(QueuePath queuePath, int securityInformation)
         {
             byte[] securityDescriptorBytes;
@@ -199,7 +221,7 @@ namespace cMsmq
             int lengthNeeded;
             uint result;
 
-            string formatName = queuePath.ToString();
+            string formatName = PathNameToFormatName(queuePath);
 
             result = Security.MQGetQueueSecurity(formatName, securityInformation, IntPtr.Zero, 0, out lengthNeeded);
 
@@ -261,6 +283,13 @@ namespace cMsmq
         }
 
         #region P/Invoke Definitions
+
+        [DllImport("mqrt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern uint MQPathNameToFormatName(
+            string lpwcsPathName,
+            StringBuilder lpwcsFormatName,
+            ref int lpdwCount
+        );
 
         [DllImport("mqrt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern uint MQGetQueueSecurity(
