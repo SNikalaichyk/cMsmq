@@ -1,6 +1,6 @@
 # cMsmq
 
-The **cMsmq** module contains DSC resources for managing private MSMQ queues.
+The **cMsmq** module contains DSC resources for managing MSMQ queues (private & public).
 
 *Supports Windows Server 2008 R2 and later.*
 
@@ -10,7 +10,7 @@ You can also download this module from the [PowerShell Gallery](https://www.powe
 
 ### cMsmqQueue
 
-The **cMsmqQueue** DSC resource provides a mechanism to manage private MSMQ queues.
+The **cMsmqQueue** DSC resource provides a mechanism to manage MSMQ queues (private & public).
 
 * **Ensure**: Indicates whether the queue exists.
 * **Name**: Indicates the name of the queue.
@@ -25,7 +25,7 @@ The **cMsmqQueue** DSC resource provides a mechanism to manage private MSMQ queu
 
 ### cMsmqQueuePermissionEntry
 
-The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage permissions on private MSMQ queues.
+The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage permissions on MSMQ queues.
 
 * **Ensure**: Indicates whether the permission entry exists. Set this property to `Absent` to ensure that any access rights the principal has are revoked. The default value is `Present`.
 * **Name**: Indicates the name of the queue.
@@ -41,9 +41,11 @@ The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage pe
 
 ## Versions
 
-### 1.0.x (to be released)
+### 1.0.4 (to be released)
 
+* Support of private & public MSMQ
 * Unit and integration tests created (not really).
+
 
 ### 1.0.3 (November 24, 2015)
 
@@ -65,7 +67,7 @@ The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage pe
 
 ## Examples
 
-This configuration will ensure that Microsoft Message Queuing (MSMQ) is installed, create several private queues, and assign permissions on them.
+This configuration will ensure that Microsoft Message Queuing (MSMQ) is installed, create several queues, and assign permissions on them.
 
 ```powershell
 
@@ -94,7 +96,7 @@ configuration Sample_cMsmq
     cMsmqQueue Queue1
     {
         Ensure    = 'Present'
-        Name      = 'Queue-1'
+        Name      = 'private$\Queue-1'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -103,7 +105,7 @@ configuration Sample_cMsmq
     cMsmqQueue Queue2
     {
         Ensure        = 'Present'
-        Name          = 'Queue-2'
+        Name          = 'private$\Queue-2'
         Transactional = $true
         Authenticate  = $true
         Journaling    = $true
@@ -118,7 +120,7 @@ configuration Sample_cMsmq
     cMsmqQueue Queue3
     {
         Ensure    = 'Absent'
-        Name      = 'Queue-3'
+        Name      = 'private$\Queue-3'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -126,7 +128,7 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission1
     {
         Ensure       = 'Present'
-        Name         = 'Queue-1'
+        Name         = 'private$\Queue-1'
         Principal    = $Env:UserDomain, $Env:UserName -join '\'
         AccessRights = 'FullControl'
         DependsOn    = '[cMsmqQueue]Queue1'
@@ -136,7 +138,7 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission2
     {
         Ensure       = 'Present'
-        Name         = 'Queue-2'
+        Name         = 'private$\Queue-2'
         Principal    = 'BUILTIN\Administrators'
         AccessRights = 'ChangeQueuePermissions', 'DeleteQueue'
         DependsOn    = '[cMsmqQueue]Queue2'
@@ -146,9 +148,28 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission3
     {
         Ensure    = 'Absent'
-        Name      = 'Queue-2'
+        Name      = 'private$\Queue-2'
         Principal = 'BUILTIN\Users'
         DependsOn = '[cMsmqQueue]Queue2'
+    }
+
+    # Ensure the specified public queue exists.
+    # All the parameters will be either left unchanged or, if the queue is to be created, set to their default values.
+    cMsmqQueue PublicQueue1
+    {
+        Ensure    = 'Present'
+        Name      = 'Queue-1'
+        DependsOn = '[Service]MsmqService'
+    }
+
+    # Grant Full Control permission level for the specified principal.
+    cMsmqQueuePermissionEntry PublicQueuePermission1
+    {
+        Ensure       = 'Present'
+        Name         = 'Queue-1'
+        Principal    = $Env:UserDomain, $Env:UserName -join '\'
+        AccessRights = 'FullControl'
+        DependsOn    = '[cMsmqQueue]PublicQueue1'
     }
 }
 
