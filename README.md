@@ -14,6 +14,7 @@ The **cMsmqQueue** DSC resource provides a mechanism to manage MSMQ queues (priv
 
 * **Ensure**: Indicates whether the queue exists.
 * **Name**: Indicates the name of the queue.
+* **QueueType**: Indicates if it is a private or a public queue.
 * **Transactional**: Indicates whether the queue is transactional.
   > **Note:** If there is already a queue with the same name but of different type, an error will be thrown.
 * **Authenticate**: Indicates whether the queue accepts only authenticated messages.
@@ -29,6 +30,7 @@ The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage pe
 
 * **Ensure**: Indicates whether the permission entry exists. Set this property to `Absent` to ensure that any access rights the principal has are revoked. The default value is `Present`.
 * **Name**: Indicates the name of the queue.
+* **QueueType**: Indicates if it is a private or a public queue.
 * **Principal**: Indicates the identity of the principal.
  Valid name formats:
  [User Principal Name](https://msdn.microsoft.com/en-us/library/windows/desktop/aa380525%28v=vs.85%29.aspx#user_principal_name);
@@ -43,7 +45,7 @@ The **cMsmqQueuePermissionEntry** DSC resource provides a mechanism to manage pe
 
 ### 1.0.4 (to be released)
 
-* Support of private & public MSMQ
+* Support of private & public MSMQ (Fully backward compatible - QueueType is optional and by default 'Private')
 * Unit and integration tests created (not really).
 
 
@@ -96,7 +98,8 @@ configuration Sample_cMsmq
     cMsmqQueue Queue1
     {
         Ensure    = 'Present'
-        Name      = 'private$\Queue-1'
+        Name      = 'Queue-1'
+        QueueType = 'Private'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -105,7 +108,8 @@ configuration Sample_cMsmq
     cMsmqQueue Queue2
     {
         Ensure        = 'Present'
-        Name          = 'private$\Queue-2'
+        Name          = 'Queue-2'
+        QueueType     = 'Private'
         Transactional = $true
         Authenticate  = $true
         Journaling    = $true
@@ -120,7 +124,8 @@ configuration Sample_cMsmq
     cMsmqQueue Queue3
     {
         Ensure    = 'Absent'
-        Name      = 'private$\Queue-3'
+        Name      = 'Queue-3'
+        QueueType = 'Private'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -128,7 +133,8 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission1
     {
         Ensure       = 'Present'
-        Name         = 'private$\Queue-1'
+        Name         = 'Queue-1'
+        QueueType    = 'Private'
         Principal    = $Env:UserDomain, $Env:UserName -join '\'
         AccessRights = 'FullControl'
         DependsOn    = '[cMsmqQueue]Queue1'
@@ -138,7 +144,8 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission2
     {
         Ensure       = 'Present'
-        Name         = 'private$\Queue-2'
+        Name         = 'Queue-2'
+        QueueType    = 'Private'
         Principal    = 'BUILTIN\Administrators'
         AccessRights = 'ChangeQueuePermissions', 'DeleteQueue'
         DependsOn    = '[cMsmqQueue]Queue2'
@@ -148,7 +155,8 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry QueuePermission3
     {
         Ensure    = 'Absent'
-        Name      = 'private$\Queue-2'
+        Name      = 'Queue-2'
+        QueueType = 'Private'
         Principal = 'BUILTIN\Users'
         DependsOn = '[cMsmqQueue]Queue2'
     }
@@ -158,7 +166,8 @@ configuration Sample_cMsmq
     cMsmqQueue PublicQueue1
     {
         Ensure    = 'Present'
-        Name      = 'Queue-1'
+        Name      = 'Public-Queue-1'
+        QueueType = 'Public'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -166,7 +175,8 @@ configuration Sample_cMsmq
     cMsmqQueuePermissionEntry PublicQueuePermission1
     {
         Ensure       = 'Present'
-        Name         = 'Queue-1'
+        Name         = 'Public-Queue-1'
+        QueueType    = 'Public'
         Principal    = $Env:UserDomain, $Env:UserName -join '\'
         AccessRights = 'FullControl'
         DependsOn    = '[cMsmqQueue]PublicQueue1'

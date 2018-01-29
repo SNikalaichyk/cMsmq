@@ -1,4 +1,3 @@
-
 configuration Sample_cMsmq
 {
     Import-DscResource -ModuleName cMsmq
@@ -25,6 +24,7 @@ configuration Sample_cMsmq
     {
         Ensure    = 'Present'
         Name      = 'Queue-1'
+        QueueType = 'Private'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -34,6 +34,7 @@ configuration Sample_cMsmq
     {
         Ensure        = 'Present'
         Name          = 'Queue-2'
+        QueueType     = 'Private'
         Transactional = $true
         Authenticate  = $true
         Journaling    = $true
@@ -49,6 +50,7 @@ configuration Sample_cMsmq
     {
         Ensure    = 'Absent'
         Name      = 'Queue-3'
+        QueueType = 'Private'
         DependsOn = '[Service]MsmqService'
     }
 
@@ -57,6 +59,7 @@ configuration Sample_cMsmq
     {
         Ensure       = 'Present'
         Name         = 'Queue-1'
+        QueueType    = 'Private'
         Principal    = $Env:UserDomain, $Env:UserName -join '\'
         AccessRights = 'FullControl'
         DependsOn    = '[cMsmqQueue]Queue1'
@@ -67,6 +70,7 @@ configuration Sample_cMsmq
     {
         Ensure       = 'Present'
         Name         = 'Queue-2'
+        QueueType    = 'Private'
         Principal    = 'BUILTIN\Administrators'
         AccessRights = 'ChangeQueuePermissions', 'DeleteQueue'
         DependsOn    = '[cMsmqQueue]Queue2'
@@ -77,8 +81,30 @@ configuration Sample_cMsmq
     {
         Ensure    = 'Absent'
         Name      = 'Queue-2'
+        QueueType = 'Private'
         Principal = 'BUILTIN\Users'
         DependsOn = '[cMsmqQueue]Queue2'
+    }
+
+    # Ensure the specified public queue exists.
+    # All the parameters will be either left unchanged or, if the queue is to be created, set to their default values.
+    cMsmqQueue PublicQueue1
+    {
+        Ensure    = 'Present'
+        Name      = 'Public-Queue-1'
+        QueueType = 'Public'
+        DependsOn = '[Service]MsmqService'
+    }
+
+    # Grant Full Control permission level for the specified principal.
+    cMsmqQueuePermissionEntry PublicQueuePermission1
+    {
+        Ensure       = 'Present'
+        Name         = 'Public-Queue-1'
+        QueueType    = 'Public'
+        Principal    = $Env:UserDomain, $Env:UserName -join '\'
+        AccessRights = 'FullControl'
+        DependsOn    = '[cMsmqQueue]PublicQueue1'
     }
 }
 

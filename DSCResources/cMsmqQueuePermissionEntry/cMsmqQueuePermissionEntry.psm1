@@ -16,6 +16,11 @@ function Get-TargetResource
         [String]
         $Name,
 
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
+
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
@@ -39,7 +44,7 @@ function Get-TargetResource
     }
     process
     {
-        $QueuePath = '.\{0}' -f $Name
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
@@ -47,7 +52,7 @@ function Get-TargetResource
             return
         }
 
-        $CurrentPermission = Get-cMsmqQueuePermission -Name $Name -Principal $Principal -ErrorAction SilentlyContinue
+        $CurrentPermission = Get-cMsmqQueuePermission -Name $Name -QueueType $QueueType -Principal $Principal -ErrorAction SilentlyContinue
 
         if ($CurrentPermission)
         {
@@ -86,6 +91,7 @@ function Get-TargetResource
         $ReturnValue = @{
                 Ensure       = $EnsureResult
                 Name         = $Name
+                QueueType    = $QueueType
                 Principal    = $Principal
                 AccessRights = $AccessRightsResult
             }
@@ -109,6 +115,11 @@ function Test-TargetResource
         [ValidateNotNullOrEmpty()]
         [String]
         $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
@@ -160,6 +171,11 @@ function Set-TargetResource
         [String]
         $Name,
 
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
+
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
@@ -178,7 +194,7 @@ function Set-TargetResource
 
     $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
-    $QueuePath = '.\{0}' -f $Name
+    $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
 
     if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
     {
@@ -192,7 +208,7 @@ function Set-TargetResource
 
     Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
 
-    $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
+    $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -QueueType $QueueType -Principal $CurrentUser -ErrorAction SilentlyContinue
     $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::ChangeQueuePermissions
 
     if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
@@ -200,18 +216,18 @@ function Set-TargetResource
         "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
         Write-Verbose
 
-        Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
+        Reset-cMsmqQueueSecurity -Name $Name -QueueType $QueueType -Confirm:$false -Verbose:$VerbosePreference
     }
 
     if ($Ensure -eq 'Absent')
     {
-        Write-Verbose -Message "Revoking all existing permissions for principal '$Principal' on queue '$Name'."
+        Write-Verbose -Message "Revoking all existing permissions for principal '$Principal' on $QueueType queue '$Name'."
 
         $Queue.SetPermissions($Principal, $DesiredPermission, [System.Messaging.AccessControlEntryType]::Revoke)
     }
     else
     {
-        Write-Verbose -Message "Setting permissions for principal '$Principal' on queue '$Name'."
+        Write-Verbose -Message "Setting permissions for principal '$Principal' on $QueueType queue '$Name'."
 
         $Queue.SetPermissions($Principal, $DesiredPermission, [System.Messaging.AccessControlEntryType]::Set)
     }
@@ -257,6 +273,8 @@ function Get-cMsmqQueuePermission
         to the specified security principal on the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     .PARAMETER Principal
         Specifies the identity of the principal.
     #>
@@ -267,6 +285,11 @@ function Get-cMsmqQueuePermission
         [Parameter(Mandatory = $true)]
         [String]
         $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $true)]
         [String]
@@ -280,9 +303,11 @@ function Get-cMsmqQueuePermission
     {
         try
         {
-            Write-Verbose -Message "Getting permissions for principal '$Principal' on queue '$Name'."
+            Write-Verbose -Message "Getting permissions for principal '$Principal' on $QueueType queue '$Name'."
 
-            $AccessMask = [cMsmq.Security]::GetAccessMask($Name, $Principal)
+            $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+
+            $AccessMask = [cMsmq.Security]::GetAccessMask($QueuePath, $Principal)
             $OutputObject = [System.Messaging.MessageQueueAccessRights]$AccessMask.value__
 
             return $OutputObject
@@ -306,6 +331,8 @@ function Reset-cMsmqQueueSecurity
         - Resets the permission list to the operating system's default values.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     #>
     [CmdletBinding(ConfirmImpact = 'High', SupportsShouldProcess = $true)]
     param
@@ -313,7 +340,12 @@ function Reset-cMsmqQueueSecurity
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $Name
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
     )
     begin
     {
@@ -329,19 +361,26 @@ function Reset-cMsmqQueueSecurity
             return
         }
 
-        $QueuePath = '.\{0}' -f $Name
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
 
         $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-        $QueueOwner = [cMsmq.Security]::GetOwner($Name)
+        $QueueOwner = [cMsmq.Security]::GetOwner($QueuePath)
 
         Write-Verbose -Message "Queue Owner : '$QueueOwner'"
 
         if ($CurrentUser -ne $QueueOwner)
         {
+            if ($QueueType -eq 'Private')
+            {
+                $ShortQueuePath = '{0}$\{1}' -f $QueueType, $Name
+            }else{
+                $ShortQueuePath = '{0}' -f $Name
+            }
+
             Write-Verbose -Message "Taking ownership of queue '$Name'."
 
             $FilePath = Get-ChildItem -Path "$Env:SystemRoot\System32\msmq\storage\lqs" -Force |
-                Select-String -Pattern "QueueName=\$($Name)" -SimpleMatch |
+                Select-String -Pattern "QueueName=\$($ShortQueuePath)" -SimpleMatch |
                 Select-Object -ExpandProperty Path
 
             if (-not $FilePath)
@@ -363,4 +402,40 @@ function Reset-cMsmqQueueSecurity
     }
 }
 
+function Get-QueuePath()
+{
+    <#
+    .SYNOPSIS
+        Gets queue path from a MSMQ queue name and type.
+    .DESCRIPTION
+        The Get-QueuePath function gets the queue path from a MSMQ queue name and type.
+    .PARAMETER Name
+        Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
+
+    )
+    if ($QueueType -eq 'Private')
+    {
+        $QueuePath = '{0}\{1}$\{2}' -f $env:COMPUTERNAME, $QueueType, $Name
+    }
+    else
+    {
+        $QueuePath = '{0}\{1}' -f $env:COMPUTERNAME, $Name
+    }
+    return $QueuePath
+}
 #endregion
