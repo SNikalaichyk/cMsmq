@@ -93,23 +93,6 @@ namespace cMsmq
 
     #endregion
 
-    public class QueuePath
-    {
-        private const string QueuePathFormat = @"{0}\{1}";
-        private string queueName;
-
-        // queuename should be in the form 'private$\myprivatequeue' or 'mypublicqueue'
-        public QueuePath(string queueName)
-        {
-            this.queueName = queueName;
-        }
-
-        public override string ToString()
-        {
-            return string.Format(QueuePathFormat, System.Environment.MachineName, queueName);
-        }
-    }
-
     public class Security
     {
         private const int MQ_OK = 0x0;
@@ -200,12 +183,11 @@ namespace cMsmq
             }
         }
 
-        private static string PathNameToFormatName(QueuePath queuePath)
+        private static string PathNameToFormatName(string queuePath)
         {
-            string pathName = queuePath.ToString();
             int formatNameLength = 54; // max: 44 for public, 54 for private
             StringBuilder formatNameBuffer = new StringBuilder(formatNameLength);
-            uint result = Security.MQPathNameToFormatName(pathName, formatNameBuffer, ref formatNameLength);
+            uint result = Security.MQPathNameToFormatName(queuePath, formatNameBuffer, ref formatNameLength);
             if (result != Security.MQ_OK)
             {
                 string message = Security.GetErrorMessage(result);
@@ -214,7 +196,7 @@ namespace cMsmq
             return formatNameBuffer.ToString();
         }
 
-        private static GCHandle GetSecurityDescriptorHandle(QueuePath queuePath, int securityInformation)
+        private static GCHandle GetSecurityDescriptorHandle(string queuePath, int securityInformation)
         {
             byte[] securityDescriptorBytes;
             int length;
@@ -254,7 +236,7 @@ namespace cMsmq
             return gchSecurityDescriptor;
         }
 
-        public static MessageQueueAccessRights GetAccessMask(QueuePath queuePath, string userName)
+        public static MessageQueueAccessRights GetAccessMask(string queuePath, string userName)
         {
             var sid = TranslateUserNameToSid(userName);
             var gchSecurityDescriptor = GetSecurityDescriptorHandle(queuePath, (int)SecurityInformation.Dacl);
@@ -266,7 +248,7 @@ namespace cMsmq
             return aceMask;
         }
 
-        public static string GetOwner(QueuePath queuePath)
+        public static string GetOwner(string queuePath)
         {
             IntPtr pOwner;
             bool ownerDefaulted;

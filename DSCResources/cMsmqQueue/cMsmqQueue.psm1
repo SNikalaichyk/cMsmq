@@ -9,7 +9,12 @@ function Get-TargetResource
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $Name
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
     )
     begin
     {
@@ -24,17 +29,17 @@ function Get-TargetResource
     }
     process
     {
-        $cMsmqQueue = Get-cMsmqQueue -Name $Name -ErrorAction SilentlyContinue
+        $cMsmqQueue = Get-cMsmqQueue -Name $Name -QueueType $QueueType -ErrorAction SilentlyContinue
 
         if ($cMsmqQueue)
         {
-            Write-Verbose -Message "Queue '$Name' was found."
+            Write-Verbose -Message "$QueueType queue '$Name' was found."
 
             $EnsureResult = 'Present'
         }
         else
         {
-            Write-Verbose -Message "Queue '$Name' could not be found."
+            Write-Verbose -Message "$QueueType queue '$Name' could not be found."
 
             $EnsureResult = 'Absent'
         }
@@ -42,6 +47,7 @@ function Get-TargetResource
         $ReturnValue = @{
                 Ensure        = $EnsureResult
                 Name          = $Name
+                QueueType     = $QueueType
                 Transactional = $cMsmqQueue.Transactional
                 Authenticate  = $cMsmqQueue.Authenticate
                 Journaling    = $cMsmqQueue.Journaling
@@ -70,6 +76,11 @@ function Test-TargetResource
         [ValidateNotNullOrEmpty()]
         [String]
         $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $false)]
         [Boolean]
@@ -109,7 +120,7 @@ function Test-TargetResource
         Write-Verbose
     }
 
-    $TargetResource = Get-TargetResource -Name $Name
+    $TargetResource = Get-TargetResource -Name $Name -QueueType $QueueType
 
     if ($Ensure -eq 'Absent')
     {
@@ -156,7 +167,7 @@ function Test-TargetResource
                         $DesiredQueueTypeString = 'non-transactional'
                     }
 
-                    $ErrorMessage = "Queue '{0}' is {1} and cannot be converted to {2}." -f $Name, $CurrentQueueTypeString, $DesiredQueueTypeString
+                    $ErrorMessage = "{0} queue '{1}' is {2} and cannot be converted to {3}." -f  $QueueType, $Name, $CurrentQueueTypeString, $DesiredQueueTypeString
 
                     throw $ErrorMessage
                 }
@@ -208,6 +219,11 @@ function Set-TargetResource
         $Name,
 
         [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
+
+        [Parameter(Mandatory = $false)]
         [Boolean]
         $Transactional = $false,
 
@@ -237,7 +253,8 @@ function Set-TargetResource
         $QueueQuota = [UInt32]::MaxValue
     )
 
-    if (-not $PSCmdlet.ShouldProcess($Name))
+    $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+    if (-not $PSCmdlet.ShouldProcess($QueuePath))
     {
         return
     }
@@ -248,7 +265,7 @@ function Set-TargetResource
     {
         Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
 
-        $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
+        $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -QueueType $QueueType -Principal $CurrentUser -ErrorAction SilentlyContinue
         $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::DeleteQueue
 
         if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
@@ -256,7 +273,7 @@ function Set-TargetResource
             "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
             Write-Verbose
 
-            Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
+            Reset-cMsmqQueueSecurity -Name $Name -QueueType $QueueType -Confirm:$false -Verbose:$VerbosePreference
         }
 
         $PSBoundParameters.GetEnumerator() |
@@ -267,7 +284,7 @@ function Set-TargetResource
     }
     else
     {
-        $TargetResource = Get-TargetResource -Name $Name
+        $TargetResource = Get-TargetResource -Name $Name -QueueType $QueueType
 
         if ($TargetResource.Ensure -eq 'Absent')
         {
@@ -281,7 +298,7 @@ function Set-TargetResource
         {
             Write-Verbose -Message "Testing if the current user has the permission necessary to perform the operation."
 
-            $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -Principal $CurrentUser -ErrorAction SilentlyContinue
+            $CurrentUserPermission = Get-cMsmqQueuePermission -Name $Name -QueueType $QueueType -Principal $CurrentUser -ErrorAction SilentlyContinue
             $PermissionToTest = [System.Messaging.MessageQueueAccessRights]::SetQueueProperties
 
             if (-not $CurrentUserPermission -or -not $CurrentUserPermission.HasFlag($PermissionToTest))
@@ -289,7 +306,7 @@ function Set-TargetResource
                 "User '{0}' does not have the '{1}' permission on queue '{2}'." -f $CurrentUser, $PermissionToTest, $Name |
                 Write-Verbose
 
-                Reset-cMsmqQueueSecurity -Name $Name -Confirm:$false -Verbose:$VerbosePreference
+                Reset-cMsmqQueueSecurity -Name $Name -QueueType $QueueType -Confirm:$false -Verbose:$VerbosePreference
             }
 
             $PSBoundParameters.GetEnumerator() |
@@ -335,9 +352,9 @@ function Get-cMsmqQueue
 {
     <#
     .SYNOPSIS
-        Gets the specified private MSMQ queue by its name.
+        Gets the specified MSMQ queue by its name and type.
     .DESCRIPTION
-        The Get-cMsmqQueue function gets the specified private MSMQ queue by its name.
+        The Get-cMsmqQueue function gets the specified MSMQ queue by its name and type.
     .PARAMETER Name
         Specifies the name of the queue.
     #>
@@ -348,7 +365,12 @@ function Get-cMsmqQueue
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $Name
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
     )
     begin
     {
@@ -356,7 +378,7 @@ function Get-cMsmqQueue
     }
     process
     {
-        $QueuePath = '.\{0}' -f $Name
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
@@ -368,6 +390,7 @@ function Get-cMsmqQueue
 
         $OutputObject = [PSCustomObject]@{
                 Name          = $Name
+                QueueType     = $QueueType
                 Path          = $Queue.Path
                 Transactional = $Queue.Transactional
                 Authenticate  = $Queue.Authenticate
@@ -386,12 +409,14 @@ function Get-cMsmqQueuePermission
 {
     <#
     .SYNOPSIS
-        Gets the access rights of the specified principal on the specified private MSMQ queue.
+        Gets the access rights of the specified principal on the specified MSMQ queue.
     .DESCRIPTION
         The Get-cMsmqQueuePermission function gets the access rights that have been granted
         to the specified security principal on the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue (default private).
     .PARAMETER Principal
         Specifies the identity of the principal.
     #>
@@ -402,6 +427,11 @@ function Get-cMsmqQueuePermission
         [Parameter(Mandatory = $true)]
         [String]
         $Name,
+        
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $true)]
         [String]
@@ -413,11 +443,12 @@ function Get-cMsmqQueuePermission
     }
     process
     {
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
         try
         {
             Write-Verbose -Message "Getting permissions for principal '$Principal' on queue '$Name'."
 
-            $AccessMask = [cMsmq.Security]::GetAccessMask($Name, $Principal)
+            $AccessMask = [cMsmq.Security]::GetAccessMask($QueuePath, $Principal) # TODO HH
             $OutputObject = [System.Messaging.MessageQueueAccessRights]$AccessMask.value__
 
             return $OutputObject
@@ -434,11 +465,13 @@ function New-cMsmqQueue
 {
     <#
     .SYNOPSIS
-        Creates a new private MSMQ queue.
+        Creates a new MSMQ queue.
     .DESCRIPTION
         The New-cMsmqQueue function creates a new private MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     .PARAMETER Transactional
         Specifies whether the queue is a transactional queue.
     .PARAMETER Authenticate
@@ -461,6 +494,11 @@ function New-cMsmqQueue
         [ValidateNotNullOrEmpty()]
         [String]
         $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $false)]
         [Boolean]
@@ -506,12 +544,13 @@ function New-cMsmqQueue
     }
     process
     {
-        if (-not $PSCmdlet.ShouldProcess($Name, 'Create Queue'))
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+        if (-not $PSCmdlet.ShouldProcess($QueuePath, 'Create Queue'))
         {
             return
         }
 
-        $QueuePath = '.\{0}' -f $Name
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
 
         try
         {
@@ -550,6 +589,8 @@ function Remove-cMsmqQueue
         The Remove-cMsmqQueue function the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     #>
     [CmdletBinding(ConfirmImpact = 'High', SupportsShouldProcess = $true)]
     param
@@ -557,7 +598,12 @@ function Remove-cMsmqQueue
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $Name
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
     )
     begin
     {
@@ -565,12 +611,11 @@ function Remove-cMsmqQueue
     }
     process
     {
-        if (-not $PSCmdlet.ShouldProcess($Name, 'Remove Queue'))
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+        if (-not $PSCmdlet.ShouldProcess($QueuePath, 'Remove Queue'))
         {
             return
         }
-
-        $QueuePath = '.\{0}' -f $Name
 
         try
         {
@@ -595,6 +640,8 @@ function Reset-cMsmqQueueSecurity
         - Resets the permission list to the operating system's default values.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     #>
     [CmdletBinding(ConfirmImpact = 'High', SupportsShouldProcess = $true)]
     param
@@ -602,7 +649,12 @@ function Reset-cMsmqQueueSecurity
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $Name
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
     )
     begin
     {
@@ -613,24 +665,30 @@ function Reset-cMsmqQueueSecurity
     }
     process
     {
-        if (-not $PSCmdlet.ShouldProcess($Name, 'Reset Queue Security'))
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+        if (-not $PSCmdlet.ShouldProcess($QueuePath, 'Reset Queue Security'))
         {
             return
         }
 
-        $QueuePath = '.\{0}' -f $Name
-
         $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-        $QueueOwner = [cMsmq.Security]::GetOwner($Name)
+        $QueueOwner = [cMsmq.Security]::GetOwner($QueuePath)
 
         Write-Verbose -Message "Queue Owner : '$QueueOwner'"
 
         if ($CurrentUser -ne $QueueOwner)
         {
+            if ($QueueType -eq 'Private')
+            {
+                $ShortQueuePath = '{0}$\{1}' -f $QueueType, $Name
+            }else{
+                $ShortQueuePath = '{0}' -f $Name
+            }
+
             Write-Verbose -Message "Taking ownership of queue '$Name'."
 
             $FilePath = Get-ChildItem -Path "$Env:SystemRoot\System32\msmq\storage\lqs" -Force |
-                Select-String -Pattern "QueueName=$($Name)" -SimpleMatch |
+                Select-String -Pattern "QueueName=$($ShortQueuePath)" -SimpleMatch |
                 Select-Object -ExpandProperty Path
 
             if (-not $FilePath)
@@ -661,6 +719,8 @@ function Set-cMsmqQueue
         The Set-cMsmqQueue function sets properties on the specified MSMQ queue.
     .PARAMETER Name
         Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
     .PARAMETER Authenticate
         Sets a value that indicates whether the queue accepts only authenticated messages.
     .PARAMETER Journaling
@@ -681,6 +741,11 @@ function Set-cMsmqQueue
         [ValidateNotNullOrEmpty()]
         [String]
         $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private',
 
         [Parameter(Mandatory = $false)]
         [Boolean]
@@ -722,12 +787,11 @@ function Set-cMsmqQueue
     }
     process
     {
-        if (-not $PSCmdlet.ShouldProcess($Name, 'Set Queue'))
+        $QueuePath = Get-QueuePath -Name $Name -QueueType $QueueType
+        if (-not $PSCmdlet.ShouldProcess($QueuePath, 'Set Queue'))
         {
             return
         }
-
-        $QueuePath = '.\{0}' -f $Name
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
@@ -753,6 +817,43 @@ function Set-cMsmqQueue
 
         }
     }
+}
+
+function Get-QueuePath()
+{
+    <#
+    .SYNOPSIS
+        Gets queue path from a MSMQ queue name and type.
+    .DESCRIPTION
+        The Get-QueuePath function gets the queue path from a MSMQ queue name and type.
+    .PARAMETER Name
+        Specifies the name of the queue.
+    .PARAMETER QueueType
+        Specifies the queue type of the queue.
+    #>
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Name,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Private', 'Public')]
+        [String]
+        $QueueType = 'Private'
+
+    )
+    if ($QueueType -eq 'Private')
+    {
+        $QueuePath = '{0}\{1}$\{2}' -f $env:COMPUTERNAME, $QueueType, $Name
+    }
+    else
+    {
+        $QueuePath = '{0}\{1}' -f $env:COMPUTERNAME, $Name
+    }
+    return $QueuePath
 }
 
 #endregion
