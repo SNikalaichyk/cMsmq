@@ -48,7 +48,7 @@ function Get-TargetResource
 
         if (-not [System.Messaging.MessageQueue]::Exists($QueuePath))
         {
-            Write-Error -Message "Queue '$Name' could not be found at the specified path: '$QueuePath'."
+            Write-Verbose -Message "Queue '$Name' could not be found at the specified path: '$QueuePath'."
             return
         }
 
